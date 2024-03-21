@@ -4,9 +4,13 @@ import hashlib
 import os
 from uuid import uuid4 as uuid
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
+
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+import io
 
 app = Flask(__name__)
 
@@ -16,12 +20,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///{}'.format(db_path)
 db = SQLAlchemy(app)
 
 # Mail configuration
-app.config["MAIL_SERVER"] = "app.debugmail.io"
-app.config["MAIL_PORT"] = 25
-app.config["MAIL_USERNAME"] = "95f620c6-3334-453a-9997-cf1a1398f8a2"
-app.config["MAIL_PASSWORD"] = "1e7cfb16-7d1d-4a49-964c-84c30128ca4b"
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USE_SSL"] = False
+app.config['MAIL_SERVER']='sandbox.smtp.mailtrap.io'
+app.config['MAIL_PORT'] = 2525
+app.config['MAIL_USERNAME'] = '65942d88be8f32'
+app.config['MAIL_PASSWORD'] = '2a956d67a5ab12'
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
 
 # Initialize Flask-Mail
 mail = Mail(app)
@@ -817,6 +821,42 @@ def enviar_email(email, evento):
     except Exception as e:
         return f"Failed to send email: {e}"
 
+
+def crear_reporte(evento_id):
+    buffer = io.BytesIO()
+
+    c = canvas.Canvas(buffer, pagesize=letter)
+
+    evento = Evento.query.get_or_404(evento_id)
+
+    c.setFont("Helvetica", 15)
+    c.drawString(100, 700, f"Reporte de asistencia para el evento {evento.Nombre}")
+
+    personas = EventoPersona.query.filter_by(EventoID=evento_id).all()
+
+    c.setFont("Helvetica", 12)
+
+    for i, persona in enumerate(personas):
+        persona = Persona.query.get(persona.PersonaIdentificacion)
+
+        firma = os.path.exists(os.path.join('static', 'images', f'{evento_id};{persona.Identificacion}.png'))
+
+        c.drawString(100, 700 - (i + 1) * 50, f"{persona.Identificacion} - {persona.Nombre} - Asistencia: {'Sí' if firma else 'No'}")
+
+    c.save()
+
+    buffer.seek(0)
+
+    return buffer
+
+
+@app.route('/descargar-reporte/<evento_id>')
+def pdf(evento_id):
+    # Generar el PDF
+    pdf_buffer = crear_reporte(evento_id)
+
+    # Enviar el buffer como respuesta, con el tipo MIME adecuado
+    return Response(pdf_buffer, mimetype='application/pdf', headers={"Content-Disposition":"attachment;filename=reporte.pdf"})
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=True)

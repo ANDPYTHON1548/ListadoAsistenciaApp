@@ -573,6 +573,10 @@
                 }')"><span class="material-symbols-outlined">
                     delete
                     </span></button>
+                  <button class="btn btn-warning btn-sm" onclick="descargarReporte('${evento.ID
+                }')"><span class="material-symbols-outlined">
+                    sim_card_download
+                    </span></button>
                 </td>
               `;
               tbody.appendChild(row);
@@ -1019,6 +1023,10 @@
             },
           });
         });
+      }
+
+      function descargarReporte(eventoId) {
+        window.open(`/descargar-reporte/${eventoId}`);
       }
 
     </script>
